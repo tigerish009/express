@@ -2,9 +2,9 @@ var express = require('express')
 var app = express()
 var fs = require('fs');
 var path = require('path');
+var qs = require('querystring');
 var sanitizeHtml = require('sanitize-html');
 var template = require('./lib/template.js');
-var qs = require('querystring');
  
 //route, routing
 //app.get('/', (req, res) => res.send('Hello World!'))
@@ -35,7 +35,7 @@ app.get('/page/:pageId', function(request, response) {
         `<h2>${sanitizedTitle}</h2>${sanitizedDescription}`,
         ` <a href="/create">create</a>
           <a href="/update/${sanitizedTitle}">update</a>
-          <form action="delete_process" method="post">
+          <form action="/delete_process" method="post">
             <input type="hidden" name="id" value="${sanitizedTitle}">
             <input type="submit" value="delete">
           </form>`
@@ -44,9 +44,9 @@ app.get('/page/:pageId', function(request, response) {
     });
   });
 });
-
-app.get('/create', function(request, response) {
-  fs.readdir('./data', function(error, filelist) {
+ 
+app.get('/create', function(request, response){
+  fs.readdir('./data', function(error, filelist){
     var title = 'WEB - create';
     var list = template.list(filelist);
     var html = template.HTML(title, list, `
@@ -59,36 +59,36 @@ app.get('/create', function(request, response) {
           <input type="submit">
         </p>
       </form>
-      `, '');
-      response.send(html);
+    `, '');
+    response.send(html);
   });
 });
-
-app.post('/create_process', function(request, response) {
+ 
+app.post('/create_process', function(request, response){
   var body = '';
-  request.on('data', function(data) {
-    body = body + data;
+  request.on('data', function(data){
+      body = body + data;
   });
-  request.on('end', function() {
-    var post = qs.parse(body);
-    var title = post.title;
-    var description = post.description;
-    fs.writeFile(`data/${title}`, description, 'utf8', function(err) {
-      response.writeHead(302, {location: `/?id=${title}`});
-      response.end();
-    })
-  })
-})
-
-app.get('/update/:pageId', function(request, response) {
-  fs.readdir('./data', function(error, filelist) {
+  request.on('end', function(){
+      var post = qs.parse(body);
+      var title = post.title;
+      var description = post.description;
+      fs.writeFile(`data/${title}`, description, 'utf8', function(err){
+        response.writeHead(302, {Location: `/?id=${title}`});
+        response.end();
+      })
+  });
+});
+ 
+app.get('/update/:pageId', function(request, response){
+  fs.readdir('./data', function(error, filelist){
     var filteredId = path.parse(request.params.pageId).base;
-    fs.readFile(`data/${filteredId}`, 'utf8', function(err, description) {
+    fs.readFile(`data/${filteredId}`, 'utf8', function(err, description){
       var title = request.params.pageId;
       var list = template.list(filelist);
       var html = template.HTML(title, list,
         `
-        <form action = "/update_process" method="post">
+        <form action="/update_process" method="post">
           <input type="hidden" name="id" value="${title}">
           <p><input type="text" name="title" placeholder="title" value="${title}"></p>
           <p>
@@ -99,32 +99,46 @@ app.get('/update/:pageId', function(request, response) {
           </p>
         </form>
         `,
-        `<a href="/create">create</a> <a href="/update/${title}">update</a>`
+        `<a href="/create">create</a> <a href="/update?id=${title}">update</a>`
       );
       response.send(html);
-    })
-  })
-})
-app.post('/update_process', function(request, response) {
-  var body = '';
-  request.on('data', function(data) {
-    body = body + data;
+    });
   });
-  request.on('end', function() {
-    var post = qs.parse(body);
-    var id = post.id;
-    var title = post.title;
-    var description = post.description;
-    fs.rename(`data/${id}`, `data/${title}`, function(error) {
-      fs.writeFile(`data/${title}`, description, 'utf8', function(err) {
-        response.writeHead(302, {Location : `/?id=${title}`});
-        response.end();
+});
+ 
+app.post('/update_process', function(request, response){
+  var body = '';
+  request.on('data', function(data){
+      body = body + data;
+  });
+  request.on('end', function(){
+      var post = qs.parse(body);
+      var id = post.id;
+      var title = post.title;
+      var description = post.description;
+      fs.rename(`data/${id}`, `data/${title}`, function(error){
+        fs.writeFile(`data/${title}`, description, 'utf8', function(err){
+          response.redirect(`/?id=${title}`);
+        })
+      });
+  });
+});
+ 
+app.post('/delete_process', function(request, response){
+  var body = '';
+  request.on('data', function(data){
+      body = body + data;
+  });
+  request.on('end', function(){
+      var post = qs.parse(body);
+      var id = post.id;
+      var filteredId = path.parse(id).base;
+      fs.unlink(`data/${filteredId}`, function(error){
+        response.redirect('/');
       })
-    })
-  })
-})
-
-
+  });
+});
+ 
 app.listen(3000, function() {
   console.log('Example app listening on port 3000!')
 });
